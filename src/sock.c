@@ -1,6 +1,6 @@
 #include "sock.h"
 
-int sock(void *(* dosock)(void *), void *arg)
+int sock(int (* dosock)(request_t *, response_t *), request_t *reqptr, response_t *resptr)
 {
 	int sfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -13,16 +13,25 @@ int sock(void *(* dosock)(void *), void *arg)
 	
 	listen(sfd, 3);
 	
-	char buf[1024];
+	char *buf = (char *)malloc(BUFLEN);
 	while (1)
 	{
 		int cfd = accept(sfd, (struct sockaddr *)NULL, NULL);
-		memset(buf, 0, sizeof(buf));
-		int nrecv = recv(cfd, buf, sizeof(buf), 0);
-		dosock(arg);
-		send(cfd, buf, nrecv, 0);
+		memset(buf, 0, BUFLEN);
+		int nrecv = recv(cfd, buf, BUFLEN, 0);
+		//int nread = read(cfd, buf, (1024));
+		printf("\n[%s][%d] request=[%s]\n", __FILE__, __LINE__, buf);
+		reqptr->id = cfd;
+		reqptr->msg = buf;
+		dosock(reqptr, resptr);
+		memset(buf, 0, BUFLEN);
+		sprintf(buf, "%d %s", resptr->id, (char *)resptr->msg);
+		printf("[%s][%d] response=[%s]\n\n", __FILE__, __LINE__, buf);
+		send(cfd, buf, BUFLEN, 0);
+		//write(cfd, buf, 1024);
 		close(cfd);
 	}
+	free(buf);
 	close(sfd);
 	return 0;
 }
